@@ -3,7 +3,7 @@
 ## Project objective
 
 Build an interview-ready task manager using Next.js 15 and TypeScript. The backend
-owns the ticket list, stores it in memory, and exposes ticket operations through
+owns the task list, stores it in memory, and exposes task operations through
 tRPC. Favor a small, readable implementation that is easy to run, demonstrate,
 test, and explain.
 
@@ -14,28 +14,28 @@ test, and explain.
 - npm with `package-lock.json`; keep dependency changes in that lockfile.
 - ESLint and CSS Modules.
 - Material UI (`@mui/material`) with Emotion for component styling.
-- tRPC, input validation, query integration, and test tooling still need to be
-  added when implementing the application.
+- Zod for shared task input validation and Jest for repository unit tests.
+- tRPC and query integration still need to be added.
 
 Keep Next.js on version 15. Build on the existing scaffold without replacing
 unrelated files or introducing unnecessary frameworks.
 
+## Task contract
 
-## Ticket contract
-
-Each ticket has a server-generated unique `id`, `title`, `description`, `createdAt`, 
+Each task has a server-generated UUID `id`, `title`, `description`, `createdAt`,
 and `updatedAt`. Use ISO 8601 strings for timestamps so the transport
 does not need custom date serialization.
 
 Validate inputs on the server using shared schemas. Trim titles and reject blank
 values. Use explicit, documented limits (initial defaults: 120 characters for a
-title and 5,000 for a description). Allowlist editable fields; clients must not
-assign IDs or timestamps. Reject empty updates and unknown status values.
+title and 5,000 for a description). Default an omitted description to an empty
+string on create. Allowlist editable fields, reject empty updates, and generate
+IDs and timestamps on the server. Task status is deferred.
 
 ## Architecture
 
 Use a small layered app structure. Keep route files focused on routing and
-server-side data loading, put reusable UI in components, share ticket schemas and
+server-side data loading, put reusable UI in components, share task schemas and
 domain types through `lib`, keep procedures and storage in `server`, and keep
 client/server tRPC integration in `trpc`. Add files only when they have a concrete
 purpose:
@@ -46,15 +46,15 @@ src/
     api/trpc/[trpc]/route.ts   # tRPC HTTP handler
     layout.tsx                # Root layout and provider composition
     page.tsx                  # SSR task list at /
-    tickets/
-      new/page.tsx            # Create ticket
-      [id]/edit/page.tsx      # Edit ticket
-  components/                 # Ticket list, form, and UI components
+    tasks/
+      new/page.tsx            # Create task
+      [id]/edit/page.tsx      # Edit task
+  components/                 # Task list, form, and UI components
   lib/
-    tickets.ts                # Shared schemas and domain types
+    tasks.ts                  # Shared schemas and domain types
   server/
-    api/                      # tRPC setup, root router, and ticket router
-    repositories/             # In-memory ticket store
+    api/                      # tRPC setup, root router, and task router
+    repositories/             # In-memory task store
   trpc/                       # Client and server tRPC integration and providers
 ```
 
@@ -66,8 +66,8 @@ src/
   layout or styles that do not belong to a component.
 - Use the `AppRouterCacheProvider` from `@mui/material-nextjs/v15-appRouter` in
   the root layout to collect Emotion styles during App Router rendering.
-- Expose `ticket.list`, `ticket.create`, `ticket.update`, and `ticket.delete`
-  through tRPC. Do not introduce a separate REST API or Server Actions for ticket
+- Expose `task.list`, `task.create`, `task.update`, and `task.delete`
+  through tRPC. Do not introduce a separate REST API or Server Actions for task
   operations.
 - Infer client API types from the tRPC router. Keep runtime server imports out of
   client modules and mark server-only modules accordingly.
@@ -80,8 +80,8 @@ src/
 - Keep page components responsible for route composition and server-side data
   loading. Put interactive list and form behavior in focused components under
   `components/`.
-- Keep shared ticket schemas and domain types browser-safe in `lib/`. Put the
-  tRPC context, root router, and ticket procedures in `server/api/`, and keep the
+- Keep shared task schemas and domain types browser-safe in `lib/`. Put the
+  tRPC context, root router, and task procedures in `server/api/`, and keep the
   repository independent of React and HTTP handling in `server/repositories/`.
 - Keep the tRPC HTTP handler in `app/api/trpc/[trpc]/route.ts` and client/server
   tRPC setup, query client, and provider integration in `trpc/`. Do not import
@@ -89,18 +89,18 @@ src/
 
 ## In-memory storage rules
 
-- Use a process-scoped store, such as a `Map` keyed by ticket ID. Never recreate
+- Use a process-scoped store, such as a `Map` keyed by task ID. Never recreate
   the store for each request or place it inside a component.
 - Reuse one store across requests in the same Node.js process. A development
   global singleton may preserve it across hot reloads; it is not persistence.
 - Return copies so callers cannot mutate stored records outside the repository.
 - Generate IDs and timestamps on the server. Preserve `createdAt` on updates and
   refresh `updatedAt` only after a valid update.
-- Return a tRPC `NOT_FOUND` error when updating or deleting an unknown ticket.
+- Return a tRPC `NOT_FOUND` error when updating or deleting an unknown task.
 - Define deterministic list ordering, initially newest first with an ID tie-break.
-- Use the Node.js runtime for the tRPC route and avoid caching live ticket results
+- Use the Node.js runtime for the tRPC route and avoid caching live task results
   across requests in a way that hides mutations.
-- Document that tickets disappear on process restart, are shared by users of the
+- Document that tasks disappear on process restart, are shared by users of the
   same process, and are not synchronized across workers or server instances.
   The demo assumes a single running server process.
 
@@ -123,23 +123,20 @@ Existing commands:
 npm ci
 npm run dev
 npm run lint
+npm run test:unit
 npx tsc --noEmit
 npm run build
 npm start
 ```
 
-`npm start` requires a successful build. Use **Jest for unit tests** and
-**Cypress for end-to-end tests**. Neither test runner is configured yet; add their
-setup and npm scripts during implementation and document the commands before
-claiming tests pass. Give each unit test a fresh repository instance to prevent
-shared-state leakage, and reset server-side ticket state between end-to-end tests.
+`npm start` requires a successful build. Use **Jest for unit tests**, with a fresh
+repository instance per test.
 
-Test meaningful behavior: ticket creation and defaults, input rejection, updates
+Test meaningful behavior: task creation and defaults, input rejection, updates
 and timestamp preservation, deletion, unknown IDs, deterministic listing, and
 protection against mutation of returned records. Exercise the tRPC boundary as
-well as the repository. Use Cypress against the running application to verify the
-full create/edit/status/delete flow and empty and error states. Manually verify
-keyboard access and a narrow viewport.
+well as the repository. Manually verify the full create/edit/delete flow, empty
+and error states, keyboard access, and a narrow viewport.
 
 For implementation changes, run lint, type checking, relevant tests, and a
 production build. Report any checks that could not run and why. Documentation-only

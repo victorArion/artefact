@@ -11,13 +11,13 @@ src/
   app/
     api/trpc/[trpc]/route.ts  # tRPC HTTP endpoint
     page.tsx                  # Server-rendered task list
-    tickets/
+    tasks/
       new/page.tsx            # Create task
       [id]/edit/page.tsx       # Edit task
     layout.tsx                # Root layout and providers
   components/                 # Task list, forms, and reusable UI
   lib/
-    tickets.ts                # Shared task schemas and types
+    tasks.ts                  # Shared task schemas and types
   server/
     api/                      # tRPC setup and task procedures
     repositories/             # In-memory task storage
@@ -59,8 +59,8 @@ set `PORT=4000`, use `-p 127.0.0.1:4000:4000` and open
 starting a new container from the existing image.
 
 The image build needs network access to download npm dependencies. The task
-manager is designed to store tickets in memory, so restarting the container
-clears its ticket data.
+manager is designed to store tasks in memory, so restarting the container
+clears its task data.
 
 ## Run locally for development
 
@@ -73,6 +73,14 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) or use the port set in `.env`.
 The production start command (`npm start` after `npm run build`) also reads `.env`.
+
+## Run repository unit tests
+
+```bash
+npm run test:unit
+```
+
+The Jest suite covers the in-memory task repository and its input validation.
 
 ## Run from VS Code
 
