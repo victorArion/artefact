@@ -34,26 +34,33 @@ assign IDs or timestamps. Reject empty updates and unknown status values.
 
 ## Architecture
 
-Use the following boundaries as the application grows; create files only when
-they have a concrete purpose:
+Use a small layered app structure. Keep route files focused on routing and
+server-side data loading, put reusable UI in components, share ticket schemas and
+domain types through `lib`, keep procedures and storage in `server`, and keep
+client/server tRPC integration in `trpc`. Add files only when they have a concrete
+purpose:
 
 ```text
 src/
   app/
     api/trpc/[trpc]/route.ts   # tRPC HTTP handler
     layout.tsx                # Root layout and provider composition
-    page.tsx                  # Task manager entry point
+    page.tsx                  # SSR task list at /
+    tickets/
+      new/page.tsx            # Create ticket
+      [id]/edit/page.tsx      # Edit ticket
   components/                 # Ticket list, form, and UI components
   lib/
     tickets.ts                # Shared schemas and domain types
   server/
     api/                      # tRPC setup, root router, and ticket router
     repositories/             # In-memory ticket store
-  trpc/                       # Client setup and query provider
+  trpc/                       # Client and server tRPC integration and providers
 ```
 
-- Use Server Components by default. Add client boundaries for forms, event
-  handlers, and query hooks where needed.
+- Use Server Components by default. Load the task list and edit data on the
+  server. Add client boundaries for interactive forms, event handlers, and query
+  hooks where needed.
 - Use Material UI for UI components by default. Use its theme, `sx` prop, and
   system styling for component appearance. Retain CSS Modules for page-level
   layout or styles that do not belong to a component.
@@ -69,6 +76,16 @@ src/
 - Use a compatible tRPC client and TanStack Query integration. Refresh relevant
   queries after successful mutations; start with straightforward mutation states
   before adding optimistic updates.
+
+- Keep page components responsible for route composition and server-side data
+  loading. Put interactive list and form behavior in focused components under
+  `components/`.
+- Keep shared ticket schemas and domain types browser-safe in `lib/`. Put the
+  tRPC context, root router, and ticket procedures in `server/api/`, and keep the
+  repository independent of React and HTTP handling in `server/repositories/`.
+- Keep the tRPC HTTP handler in `app/api/trpc/[trpc]/route.ts` and client/server
+  tRPC setup, query client, and provider integration in `trpc/`. Do not import
+  runtime server code into client components.
 
 ## In-memory storage rules
 
@@ -128,6 +145,8 @@ For implementation changes, run lint, type checking, relevant tests, and a
 production build. Report any checks that could not run and why. Documentation-only
 changes do not require an application build.
 
-Update `README.md` with setup, scripts, architecture, API operations, the
-in-memory limitation, and important tradeoffs. Keep the final implementation easy
-for an interviewer to review without additional services or credentials.
+As part of the application implementation, update `README.md` with setup and run
+instructions, available npm scripts, the layered architecture, tRPC CRUD
+operations, and the in-memory storage limitation and its tradeoffs. Keep the final
+implementation easy for an interviewer to review without additional services or
+credentials.

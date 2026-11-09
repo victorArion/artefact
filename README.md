@@ -2,6 +2,34 @@
 
 Artefact is a Next.js 15 project for a simple task manager.
 
+## Project structure
+
+The application uses a layered structure built on the Next.js App Router.
+
+```text
+src/
+  app/
+    api/trpc/[trpc]/route.ts  # tRPC HTTP endpoint
+    page.tsx                  # Server-rendered task list
+    tickets/
+      new/page.tsx            # Create task
+      [id]/edit/page.tsx       # Edit task
+    layout.tsx                # Root layout and providers
+  components/                 # Task list, forms, and reusable UI
+  lib/
+    tickets.ts                # Shared task schemas and types
+  server/
+    api/                      # tRPC setup and task procedures
+    repositories/             # In-memory task storage
+  trpc/                       # tRPC client, server helpers, and query setup
+```
+
+Route pages compose the screens and load their initial data on the server.
+Interactive forms and list actions live in components. Shared validation and
+types live in `lib`, while tRPC procedures and the repository live in `server`.
+The `trpc` directory contains the client and server integration used to connect
+the UI to the API.
+
 ## Configure the port
 
 On a fresh checkout, create your local environment file from the example.
