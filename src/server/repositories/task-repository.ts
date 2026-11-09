@@ -9,8 +9,8 @@ import {
   type UpdateTaskInput,
 } from "../../lib/tasks";
 
-export function createTaskRepository() {
-  const tasks = new Map<string, Task>();
+export function createTaskRepository(initialTasks: readonly Task[] = []) {
+  const tasks = new Map(initialTasks.map((task) => [task.id, { ...task }]));
 
   return {
     list(): Task[] {
@@ -71,4 +71,19 @@ const processGlobal = globalThis as typeof globalThis & {
 };
 
 export const taskRepository =
-  (processGlobal.artefactTaskRepository ??= createTaskRepository());
+  (processGlobal.artefactTaskRepository ??= createTaskRepository([
+    {
+      id: randomUUID(),
+      title: "Default task 1",
+      description: "This is a default task created when the repository starts.",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    },
+    {
+      id: randomUUID(),
+      title: "Default task 2",
+      description: "This is a second default task for demo purposes.",
+      createdAt: "2024-01-02T00:00:00.000Z",
+      updatedAt: "2024-01-02T00:00:00.000Z",
+    },
+  ]));

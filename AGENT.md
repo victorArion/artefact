@@ -14,8 +14,9 @@ test, and explain.
 - npm with `package-lock.json`; keep dependency changes in that lockfile.
 - ESLint and CSS Modules.
 - Material UI (`@mui/material`) with Emotion for component styling.
-- Zod for shared task input validation and Jest for repository unit tests.
-- tRPC and query integration still need to be added.
+- Zod for shared task input validation and Jest for repository and API tests.
+- tRPC v11 for task procedures and the typed HTTP client. TanStack Query
+  integration is deferred until the UI uses it.
 
 Keep Next.js on version 15. Build on the existing scaffold without replacing
 unrelated files or introducing unnecessary frameworks.
@@ -66,7 +67,7 @@ src/
   layout or styles that do not belong to a component.
 - Use the `AppRouterCacheProvider` from `@mui/material-nextjs/v15-appRouter` in
   the root layout to collect Emotion styles during App Router rendering.
-- Expose `task.list`, `task.create`, `task.update`, and `task.delete`
+- Expose `task.list`, `task.getById`, `task.create`, `task.update`, and `task.delete`
   through tRPC. Do not introduce a separate REST API or Server Actions for task
   operations.
 - Infer client API types from the tRPC router. Keep runtime server imports out of
@@ -96,7 +97,7 @@ src/
 - Return copies so callers cannot mutate stored records outside the repository.
 - Generate IDs and timestamps on the server. Preserve `createdAt` on updates and
   refresh `updatedAt` only after a valid update.
-- Return a tRPC `NOT_FOUND` error when updating or deleting an unknown task.
+- Return a tRPC `NOT_FOUND` error when reading, updating, or deleting an unknown task.
 - Define deterministic list ordering, initially newest first with an ID tie-break.
 - Use the Node.js runtime for the tRPC route and avoid caching live task results
   across requests in a way that hides mutations.

@@ -27,8 +27,7 @@ src/
 Route pages compose the screens and load their initial data on the server.
 Interactive forms and list actions live in components. Shared validation and
 types live in `lib`, while tRPC procedures and the repository live in `server`.
-The `trpc` directory contains the client and server integration used to connect
-the UI to the API.
+The `trpc` directory contains the typed HTTP client for the task API.
 
 ## Configure the port
 
@@ -74,13 +73,13 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000) or use the port set in `.env`.
 The production start command (`npm start` after `npm run build`) also reads `.env`.
 
-## Run repository unit tests
+## Run tests
 
 ```bash
 npm run test:unit
 ```
 
-The Jest suite covers the in-memory task repository and its input validation.
+The Jest suites cover the in-memory repository and the tRPC HTTP boundary.
 
 ## Run from VS Code
 
