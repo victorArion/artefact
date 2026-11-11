@@ -139,7 +139,7 @@ describe("task API", () => {
   test("hides details of unexpected server errors", async () => {
     const log = jest.spyOn(console, "error").mockImplementation(() => {});
     jest.spyOn(taskRepository, "listPage").mockImplementation(() => {
-      throw new Error("Private repository error");
+      throw new TypeError("Private repository error\n    at /private-task-data.ts:1:1");
     });
 
     const error = await client.task.listPage.query({}).catch((error: unknown) => error);
@@ -150,7 +150,16 @@ describe("task API", () => {
     expect(error).not.toHaveProperty("data.stack");
     expect(log.mock.calls).toEqual([[
       "Task procedure failed",
-      { path: "task.listPage", type: "query", code: "INTERNAL_SERVER_ERROR" },
+      {
+        path: "task.listPage",
+        type: "query",
+        code: "INTERNAL_SERVER_ERROR",
+        causeType: "TypeError",
+        stackFrames: expect.arrayContaining([
+          expect.stringMatching(/taskApi\.test\.ts:\d+:\d+$/),
+        ]),
+      },
     ]]);
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/Private repository error|private-task-data/);
   });
 });

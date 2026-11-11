@@ -90,6 +90,31 @@ src/
   tRPC setup, query client, and provider integration in `trpc/`. Do not import
   runtime server code into client components.
 
+## Querying and infinite scroll decisions
+
+- Load the first list page and edit data through a direct server-side tRPC
+  caller. Pass the first page into `useInfiniteQuery` as `initialData`. Use the
+  typed tRPC HTTP client for subsequent browser queries and mutations.
+- Keep one query client in the root provider and use the shared task list key.
+  Use a 30-second `staleTime` and `gcTime: Infinity` for the list to retain loaded
+  pages across navigation. Restore list scroll position when returning. This
+  cache lasts for the application session and grows with the number of pages.
+- Return up to 10 tasks per page and a UUID `nextCursor`, using `null` to mark the
+  end. Preserve the deterministic ordering and deleted cursor positions described
+  in the storage rules.
+- Trigger `fetchNextPage` with an `IntersectionObserver` on the bottom control,
+  and retain a manual load-more button. Pause automatic loading while fetching,
+  after an error, or while a task is selected for deletion.
+- Keep loaded cards visible during fetches and errors. Disable automatic query
+  retries and offer explicit retry controls. Recover from invalid or missing
+  cursors by refetching from the first page to rebuild the cursor chain.
+- Invalidate the list after successful creates and edits. After successful
+  deletion, cancel list fetches, remove the task from cached pages, and invalidate
+  the list. Preserve cached data when a mutation fails.
+- Show browser query and mutation activity through the shared request indicator,
+  with a minimum visible duration of 400 milliseconds. Disable the list loading
+  button while fetching.
+
 ## In-memory storage rules
 
 - Use a process-scoped store, such as a `Map` keyed by task ID. Never recreate

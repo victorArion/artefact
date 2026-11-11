@@ -27,12 +27,35 @@ const t = initTRPC.context<Context>().create({
   },
 });
 
+function getStackFrames(error: Error): string[] {
+  const header = `${Error.prototype.toString.call(error)}\n`;
+  const stack = error.stack;
+  if (!stack?.startsWith(header)) return [];
+
+  // Skip the whole message, which can contain newlines and task data.
+  const appRoot = process.cwd();
+  return stack.slice(header.length).split("\n").flatMap((line) => {
+    const frame = /^at (?:async )?(.+)$/.exec(line.trim())?.[1];
+    if (!frame) return [];
+
+    const location = / \(([^()]*)\)$/.exec(frame)?.[1] ?? frame;
+    if (!/^(?:\/|file:\/\/\/|node:|[a-z]:\\)[^()?#]+:\d+:\d+$/i.test(location)) return [];
+    return [location.replace(appRoot, "<app>")];
+  }).slice(0, 10);
+}
+
 export const router = t.router;
 export const procedure = t.procedure.use(async ({ next, path, type }) => {
   const result = await next();
   if (!result.ok && result.error.code === "INTERNAL_SERVER_ERROR") {
-    // Only log router metadata: causes and request inputs can contain task data.
-    console.error("Task procedure failed", { path, type, code: result.error.code, result: result });
+    const cause = result.error.cause ?? result.error;
+    console.error("Task procedure failed", {
+      path,
+      type,
+      code: result.error.code,
+      causeType: cause.constructor.name,
+      stackFrames: getStackFrames(cause),
+    });
   }
   return result;
 });

@@ -1,99 +1,80 @@
 # Artefact
 
-Artefact is a Next.js 15 project for a simple task manager.
+Task manager with CRUD, server-rendered initial data, and infinite scroll.
+Built with Next.js 15, React 19, TypeScript, tRPC v11, Zod, TanStack Query,
+and Material UI. The interface is in Brazilian Portuguese.
 
-## Project structure
+## Run
 
-The application uses a layered structure built on the Next.js App Router.
-
-```text
-src/
-  app/
-    api/trpc/[trpc]/route.ts  # tRPC HTTP endpoint
-    page.tsx                  # Server-rendered task list
-    tasks/
-      new/page.tsx            # Create task
-      [id]/edit/page.tsx       # Edit task
-    layout.tsx                # Root layout and providers
-  components/                 # Task list, forms, and reusable UI
-  lib/
-    tasks.ts                  # Shared task schemas and types
-  server/
-    api/                      # tRPC setup and task procedures
-    repositories/             # In-memory task storage
-  trpc/                       # tRPC client, server helpers, and query setup
-```
-
-Route pages compose the screens and load their initial data on the server.
-Interactive forms and list actions live in components. Shared validation and
-types live in `lib`, while tRPC procedures and the repository live in `server`.
-The `trpc` directory contains the typed HTTP client for the task API.
-
-## Configure the port
-
-On a fresh checkout, create your local environment file from the example.
+Requires Node.js 22.9+ and npm.
 
 ```bash
 cp .env_example .env
+npm ci
+npm run dev
 ```
 
-Set `PORT` in `.env` to change the listening port. The default is `3000`. Restart
-the server or container after editing the file, then open `http://localhost:<port>`
-using the new value. For local npm and VS Code launches, a `PORT` already exported
-in your shell takes precedence over `.env`.
+Open [localhost:3000](http://localhost:3000). The example environment seeds
+200 demo tasks. Set `TASK_SEED_COUNT=0` to start empty or change `PORT` as needed.
+Restart the server after changing environment variables.
 
-## Run with Docker
+For production, run `npm run build` followed by `npm start`.
 
-With Docker running, build and start the production image from the project root.
+For Docker, create `.env` as above, then run:
 
 ```bash
 docker build -t artefact .
 docker run --rm --env-file .env -p 127.0.0.1:3000:3000 artefact
 ```
 
-The Docker image seeds 200 generated demo tasks at startup. Tasks remain in
-memory and are recreated when the container starts again.
+If you change `PORT`, update both port numbers in the Docker mapping.
 
-Open [http://localhost:3000](http://localhost:3000). Press `Ctrl+C` to stop the
-container. Docker passes `PORT` from `.env` to the container at startup. If you
-set `PORT=4000`, use `-p 127.0.0.1:4000:4000` and open
-[http://localhost:4000](http://localhost:4000). Changing the port only requires
-starting a new container from the existing image.
+## Architecture
 
-The image build needs network access to download npm dependencies. The task
-manager is designed to store tasks in memory, so restarting the container
-clears its task data.
+A layered structure separates UI, validation, API procedures, and storage.
 
-## Run locally for development
-
-With Node.js 22.9 or later and npm installed, run the following commands.
-
-```bash
-npm ci
-npm run dev
+```text
+src/
+  app/                    # Routes, layouts, and tRPC HTTP handler
+  components/task/        # Server loaders, list, form, and delete dialog
+  lib/                    # Shared schemas, types, and error messages
+  server/api/             # tRPC context and task procedures
+  server/repositories/    # In-memory storage and demo data
+  trpc/                   # Typed HTTP client, query provider, and loading state
 ```
 
-Open [http://localhost:3000](http://localhost:3000) or use the port set in `.env`.
-The production start command (`npm start` after `npm run build`) also reads `.env`.
+The UI routes are `/`, `/tasks/new`, and `/tasks/[id]/edit`. The API at
+`/api/trpc` exposes `task.listPage`, `task.getById`, `task.create`,
+`task.update`, and `task.delete`.
 
-## Run tests
+## Key decisions
+
+- **Querying.** Server loaders call tRPC directly for initial list and edit data.
+  The list initializes TanStack Query with the first page. Later browser requests
+  use the typed HTTP client. Successful mutations invalidate the list cache.
+- **Infinite scroll.** Fetch 10 tasks at a time using UUID cursors, ordered newest
+  first with an ID tie-break. Deleted cursor positions remain available.
+  `IntersectionObserver` triggers loading, with a manual load-more button.
+  Loading pauses during requests, errors, and delete confirmation.
+- **Cache and feedback.** List data stays fresh for 30 seconds. Loaded pages and
+  scroll position survive navigation within the app. Existing cards remain
+  visible during requests and errors, with loading indicators and explicit retry
+  controls. Invalid cursors trigger recovery from the first page when retried.
+- **Validation.** Shared Zod schemas require a title and description, limited to
+  120 and 5,000 characters. The server generates UUIDs and ISO timestamps,
+  preserves creation time on edits, and returns meaningful errors for missing
+  tasks. Forms preserve input after failed submissions.
+- **Tradeoffs.** Retaining loaded pages and deleted cursor positions increases
+  memory usage over time.
+
+## Verification
 
 ```bash
-npm run test:unit
+npm run lint
+npm run test
+npm run build
 ```
 
-The Jest suites cover the in-memory repository and the tRPC HTTP boundary.
-
-## Run from VS Code
-
-Open the project folder in VS Code and install dependencies from the integrated
-terminal if needed:
-
-```bash
-npm ci
-```
-
-Open **Run and Debug** (`Ctrl+Shift+D` on Windows/Linux or `Shift+Command+D` on
-macOS), select **Next.js**, and press **F5**. This starts the
-development server with the debugger attached. Then open
-[http://localhost:3000](http://localhost:3000) or use the port set in `.env`.
+Jest and React Testing Library cover repository behavior, tRPC requests, routes,
+forms, deletion, pagination recovery, and navigation state. Manual verification
+should also cover browser flows, keyboard access, and mobile layout.
