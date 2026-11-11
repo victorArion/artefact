@@ -21,8 +21,17 @@ import type { Task, TaskCursor, TaskPage } from "../../lib/tasks";
 import { getTaskError } from "../../lib/taskErrors";
 import TaskDeleteDialog from "./deleteDialog";
 import { createTaskClient } from "../../trpc/client";
+import { taskListKey } from "@/trpc/queryKeys";
 
-const taskListKey = ["task", "listPage"] as const;
+const taskDateFormatter = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "America/Sao_Paulo",
+});
 
 type TaskListProps = {
   firstPage: TaskPage;
@@ -33,6 +42,7 @@ type TaskListProps = {
 export default function TaskList({ firstPage, headingRef, onTaskDeleted }: TaskListProps) {
   const [client] = useState(createTaskClient);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
   const focusListAfterDelete = useRef(false);
 
@@ -54,7 +64,8 @@ export default function TaskList({ firstPage, headingRef, onTaskDeleted }: TaskL
     getNextPageParam: (page) => page.nextCursor,
     initialData: { pages: [firstPage], pageParams: [null] },
     staleTime: 30_000,
-    refetchOnMount: false,
+    gcTime: Infinity,
+    refetchOnMount: true,
     retry: false,
   });
 
@@ -106,24 +117,34 @@ export default function TaskList({ firstPage, headingRef, onTaskDeleted }: TaskL
                   >
                     <Box sx={{ minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" }}>
                       <Typography component="h2" variant="h6">{task.title}</Typography>
-                      {task.description && (
-                        <Tooltip title={task.description} arrow placement="top-start">
-                          <Typography
-                            tabIndex={0}
-                            color="text.secondary"
-                            sx={{
-                              whiteSpace: "pre-wrap",
-                              overflow: "hidden",
-                              display: "-webkit-box",
-                              WebkitBoxOrient: "vertical",
-                              WebkitLineClamp: 3,
-                              cursor: "help",
-                            }}
-                          >
-                            {task.description}
-                          </Typography>
-                        </Tooltip>
-                      )}
+                      <Tooltip title={task.description} arrow placement="top-start">
+                        <Typography
+                          tabIndex={0}
+                          color="text.secondary"
+                          sx={{
+                            whiteSpace: "pre-wrap",
+                            overflow: "hidden",
+                            display: "-webkit-box",
+                            WebkitBoxOrient: "vertical",
+                            WebkitLineClamp: 3,
+                            cursor: "help",
+                          }}
+                        >
+                          {task.description}
+                        </Typography>
+                      </Tooltip>
+                      <Stack spacing={0.25} sx={{ mt: 1 }}>
+                        <Typography component="p" variant="caption" color="text.secondary">
+                          Criada em: <time dateTime={task.createdAt}>
+                            {taskDateFormatter.format(new Date(task.createdAt))}
+                          </time>
+                        </Typography>
+                        <Typography component="p" variant="caption" color="text.secondary">
+                          Atualizada em: <time dateTime={task.updatedAt}>
+                            {taskDateFormatter.format(new Date(task.updatedAt))}
+                          </time>
+                        </Typography>
+                      </Stack>
                     </Box>
                     <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                       <Button
@@ -138,6 +159,7 @@ export default function TaskList({ firstPage, headingRef, onTaskDeleted }: TaskL
                         aria-label={`Excluir tarefa: ${task.title}`}
                         onClick={() => {
                           setSelectedTask(task);
+                          setDialogOpen(true);
                         }}
                       >
                         Excluir
@@ -176,14 +198,16 @@ export default function TaskList({ firstPage, headingRef, onTaskDeleted }: TaskL
       {selectedTask && (
         <TaskDeleteDialog
           task={selectedTask}
+          open={dialogOpen}
           deleteTask={(id) => client.task.delete.mutate({ id })}
-          onClose={() => setSelectedTask(null)}
+          onClose={() => setDialogOpen(false)}
           onDeleted={(title) => {
             focusListAfterDelete.current = true;
-            setSelectedTask(null);
+            setDialogOpen(false);
             onTaskDeleted(title);
           }}
           onExited={() => {
+            setSelectedTask(null);
             if (focusListAfterDelete.current) {
               focusListAfterDelete.current = false;
               headingRef.current?.focus();

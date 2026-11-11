@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
+import QueryProvider from "@/trpc/queryProvider";
 
 export const metadata: Metadata = {
   title: "Artefact",
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <AppRouterCacheProvider>{children}</AppRouterCacheProvider>
+        <AppRouterCacheProvider>
+          <QueryProvider>{children}</QueryProvider>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

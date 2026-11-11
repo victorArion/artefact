@@ -16,11 +16,11 @@ import {
 } from "@tanstack/react-query";
 import type { Task, TaskCursor, TaskPage } from "../../lib/tasks";
 import { getTaskError } from "../../lib/taskErrors";
-
-const taskListKey = ["task", "listPage"] as const;
+import { taskListKey } from "@/trpc/queryKeys";
 
 type TaskDeleteDialogProps = {
   task: Task;
+  open: boolean;
   deleteTask: (id: string) => Promise<{ id: string }>;
   onClose: () => void;
   onDeleted: (title: string) => void;
@@ -29,6 +29,7 @@ type TaskDeleteDialogProps = {
 
 export default function TaskDeleteDialog({
   task,
+  open,
   deleteTask,
   onClose,
   onDeleted,
@@ -58,7 +59,7 @@ export default function TaskDeleteDialog({
 
   return (
     <Dialog
-      open
+      open={open}
       aria-labelledby="delete-task-title"
       aria-describedby="delete-task-description"
       onClose={() => {

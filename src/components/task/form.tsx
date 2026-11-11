@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -12,6 +13,7 @@ import {
 } from "../../lib/tasks";
 import { createTaskClient } from "../../trpc/client";
 import { getTaskError, getTaskFieldErrors } from "../../lib/taskErrors";
+import { taskListKey } from "@/trpc/queryKeys";
 
 type TaskFormProps = {
   task?: Pick<Task, "id" | "title" | "description">;
@@ -19,12 +21,19 @@ type TaskFormProps = {
 
 export default function TaskForm({ task }: TaskFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [client] = useState(createTaskClient);
+  const saveTask = useMutation({
+    mutationFn: ({ title, description }: { title: string; description: string }) =>
+      task
+        ? client.task.update.mutate({ id: task.id, changes: { title, description } })
+        : client.task.create.mutate({ title, description }),
+  });
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
   const [errors, setErrors] = useState<{ title?: string; description?: string }>({});
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const isSaving = saveTask.isPending;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,22 +59,17 @@ export default function TaskForm({ task }: TaskFormProps) {
     }
 
     setErrors({});
-    setIsSaving(true);
     try {
-      if (task) {
-        await client.task.update.mutate({ id: task.id, changes: result.data });
-      } else {
-        await client.task.create.mutate(result.data);
-      }
+      await saveTask.mutateAsync(result.data);
     } catch (error) {
       const fields = getTaskFieldErrors(error);
       if (fields.title || fields.description) setErrors(fields);
       else setSaveError(getTaskError(error, "save").message);
-      setIsSaving(false);
       return;
     }
 
-    router.replace("/");
+    void queryClient.invalidateQueries({ queryKey: taskListKey, exact: true });
+    router.replace("/", { scroll: false });
     router.refresh();
   }
 
@@ -116,7 +120,7 @@ export default function TaskForm({ task }: TaskFormProps) {
         {isSaving ? (
           <Button disabled>Cancelar</Button>
         ) : (
-          <Button component={Link} href="/">Cancelar</Button>
+          <Button component={Link} href="/" scroll={false}>Cancelar</Button>
         )}
         <Button type="submit" variant="contained" disabled={isSaving}>
           {isSaving ? "Salvando…" : task ? "Salvar alterações" : "Criar tarefa"}

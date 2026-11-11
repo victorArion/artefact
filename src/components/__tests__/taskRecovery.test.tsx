@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { TRPCClientError } from "@trpc/client";
 import type { Task } from "@/lib/tasks";
 import { taskRepository } from "@/server/repositories/taskRepository";
+import QueryProvider from "@/trpc/queryProvider";
 
 const refresh = jest.fn();
 const replace = jest.fn();
@@ -58,7 +59,7 @@ test("preserves form values and offers another submission after a connection fai
     task: { create: { mutate } },
   });
 
-  render(<TaskForm />);
+  render(<QueryProvider><TaskForm /></QueryProvider>);
   fireEvent.change(screen.getByLabelText(/Título/), { target: { value: task.title } });
   fireEvent.change(screen.getByLabelText(/Descrição/), { target: { value: task.description } });
   fireEvent.click(screen.getByRole("button", { name: "Criar tarefa" }));
@@ -69,7 +70,49 @@ test("preserves form values and offers another submission after a connection fai
   expect(replace).not.toHaveBeenCalled();
 
   fireEvent.click(screen.getByRole("button", { name: "Criar tarefa" }));
-  await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/", { scroll: false }));
+});
+
+test("leaves cached pages intact on failed edits and refreshes them after a successful edit", async () => {
+  const second = { ...task, id: "d20823d5-6f04-40a8-b280-6cb78c511b77", title: "Tarefa da segunda página" };
+  const edited = { ...task, title: "Tarefa atualizada" };
+  const firstPage = { tasks: [task], nextCursor: task.id };
+  const secondPage = { tasks: [second], nextCursor: null };
+  const query = jest.fn<TaskClient["task"]["listPage"]["query"]>()
+    .mockResolvedValueOnce(secondPage)
+    .mockResolvedValueOnce({ ...firstPage, tasks: [edited] })
+    .mockResolvedValueOnce(secondPage);
+  const mutate = jest.fn<TaskClient["task"]["update"]["mutate"]>()
+    .mockRejectedValueOnce(new Error("Save failed"))
+    .mockResolvedValueOnce(edited);
+  createTaskClient.mockReturnValue({ task: { listPage: { query }, update: { mutate } } });
+
+  const list = <QueryProvider><TaskPage firstPage={firstPage} /></QueryProvider>;
+  const form = <QueryProvider><TaskForm task={task} /></QueryProvider>;
+  const { rerender } = render(list);
+  fireEvent.click(screen.getByRole("button", { name: "Carregar mais" }));
+  expect(await screen.findByRole("heading", { name: second.title })).toBeTruthy();
+
+  rerender(form);
+  fireEvent.change(screen.getByRole("textbox", { name: /Título/ }), { target: { value: edited.title } });
+  fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Não foi possível salvar");
+  expect(replace).not.toHaveBeenCalled();
+
+  rerender(list);
+  expect(screen.getByRole("heading", { name: task.title })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: second.title })).toBeTruthy();
+  expect(query).toHaveBeenCalledTimes(1);
+
+  rerender(form);
+  fireEvent.change(screen.getByRole("textbox", { name: /Título/ }), { target: { value: edited.title } });
+  fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/", { scroll: false }));
+
+  rerender(list);
+  expect(screen.getByRole("heading", { name: second.title })).toBeTruthy();
+  expect(await screen.findByRole("heading", { name: edited.title })).toBeTruthy();
+  expect(query.mock.calls.map(([input]) => input.cursor)).toEqual([task.id, undefined, task.id]);
 });
 
 test("keeps cards after a cursor failure and restarts pagination at the first page", async () => {
@@ -82,7 +125,7 @@ test("keeps cards after a cursor failure and restarts pagination at the first pa
     task: { listPage: { query } },
   });
 
-  render(<TaskPage firstPage={{ tasks: [task], nextCursor: task.id }} />);
+  render(<QueryProvider><TaskPage firstPage={{ tasks: [task], nextCursor: task.id }} /></QueryProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Carregar mais" }));
 
   expect((await screen.findByRole("alert")).textContent).toContain("Recarregue desde o início");
@@ -102,7 +145,7 @@ test("shows a refresh failure separately after a successful deletion", async () 
     task: { listPage: { query }, delete: { mutate } },
   });
 
-  render(<TaskPage firstPage={{ tasks: [task], nextCursor: null }} />);
+  render(<QueryProvider><TaskPage firstPage={{ tasks: [task], nextCursor: null }} /></QueryProvider>);
   fireEvent.click(screen.getByRole("button", { name: `Excluir tarefa: ${task.title}` }));
   fireEvent.click(screen.getByRole("button", { name: "Confirmar exclusão" }));
 

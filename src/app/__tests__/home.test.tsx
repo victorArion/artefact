@@ -3,6 +3,7 @@ import { PassThrough } from "node:stream";
 import { text } from "node:stream/consumers";
 import { renderToPipeableStream } from "react-dom/server";
 import { createTaskRepository } from "@/server/repositories/taskRepository";
+import QueryProvider from "@/trpc/queryProvider";
 
 let repository: ReturnType<typeof createTaskRepository>;
 jest.doMock("@/server/repositories/taskRepository", () => ({
@@ -20,7 +21,7 @@ test("renders the first page of tasks from the server in the main landmark", asy
   const listPage = jest.spyOn(repository, "listPage");
   const output = new PassThrough();
   const html = text(output);
-  const { pipe } = renderToPipeableStream(<Home />, {
+  const { pipe } = renderToPipeableStream(<QueryProvider><Home /></QueryProvider>, {
     onAllReady: () => pipe(output),
     onError: (error) => {
       output.destroy(error instanceof Error ? error : new Error(String(error)));

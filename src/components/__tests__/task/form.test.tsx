@@ -3,6 +3,7 @@ import { afterEach, expect, jest, test } from "@jest/globals";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Task } from "@/lib/tasks";
 import type { createTaskClient as clientFactory } from "@/trpc/client";
+import QueryProvider from "@/trpc/queryProvider";
 
 const replace = jest.fn();
 const refresh = jest.fn();
@@ -20,7 +21,7 @@ afterEach(() => { jest.clearAllMocks(); });
 test("validates required fields before creating and navigates after success", async () => {
   createTaskClient.mockReturnValue({ task: { create: { mutate } } });
   mutate.mockResolvedValue(task);
-  render(<TaskForm />);
+  render(<QueryProvider><TaskForm /></QueryProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Criar tarefa" }));
   expect(await screen.findByText("Informe o título da tarefa.")).toBeTruthy();
   expect(screen.getByText("Informe a descrição da tarefa.")).toBeTruthy();
@@ -29,14 +30,14 @@ test("validates required fields before creating and navigates after success", as
   fireEvent.change(screen.getByLabelText(/Descrição/), { target: { value: "Body" } });
   fireEvent.click(screen.getByRole("button", { name: "Criar tarefa" }));
   await waitFor(() => expect(mutate).toHaveBeenCalledWith({ title: "New", description: "Body" }));
-  expect(replace).toHaveBeenCalledWith("/");
+  expect(replace).toHaveBeenCalledWith("/", { scroll: false });
   expect(refresh).toHaveBeenCalled();
 });
 
 test("prefills and updates an existing task", async () => {
   createTaskClient.mockReturnValue({ task: { update: { mutate: update } } });
   update.mockResolvedValue(task);
-  render(<TaskForm task={task} />);
+  render(<QueryProvider><TaskForm task={task} /></QueryProvider>);
   expect((screen.getByLabelText(/Título/) as HTMLInputElement).value).toBe("Existing");
   fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
   await waitFor(() => expect(update).toHaveBeenCalledWith({ id: task.id, changes: { title: task.title, description: task.description } }));

@@ -32,7 +32,7 @@ export const procedure = t.procedure.use(async ({ next, path, type }) => {
   const result = await next();
   if (!result.ok && result.error.code === "INTERNAL_SERVER_ERROR") {
     // Only log router metadata: causes and request inputs can contain task data.
-    console.error("Task procedure failed", { path, type, code: result.error.code });
+    console.error("Task procedure failed", { path, type, code: result.error.code, result: result });
   }
   return result;
 });

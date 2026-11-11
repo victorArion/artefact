@@ -2,6 +2,7 @@
 
 import { expect, jest, test } from "@jest/globals";
 import { render, screen, within } from "@testing-library/react";
+import QueryProvider from "@/trpc/queryProvider";
 
 jest.doMock("next/navigation", () => ({ useRouter: () => ({}) }));
 const { default: NewTaskPage } = jest.requireActual<typeof import("@/app/tasks/new/page")>(
@@ -9,7 +10,7 @@ const { default: NewTaskPage } = jest.requireActual<typeof import("@/app/tasks/n
 );
 
 test("renders a blank task creation form with a way back to the list", () => {
-  render(<NewTaskPage />);
+  render(<QueryProvider><NewTaskPage /></QueryProvider>);
   const page = within(screen.getByRole("main"));
 
   expect(page.getByRole("heading", { name: "Nova tarefa" })).toBeTruthy();

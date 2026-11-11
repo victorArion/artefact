@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createTaskRepository } from "@/server/repositories/taskRepository";
+import QueryProvider from "@/trpc/queryProvider";
 
 let repository: ReturnType<typeof createTaskRepository>;
 const refresh = jest.fn();
@@ -30,7 +31,7 @@ afterEach(() => {
 test("loads the selected task and prefills the edit form", async () => {
   repository.create({ title: "Outra tarefa", description: "Outros detalhes" });
   const task = repository.create({ title: "Revisar proposta", description: "Conferir detalhes" });
-  render(await TaskEditLoader({ id: task.id }));
+  render(<QueryProvider>{await TaskEditLoader({ id: task.id })}</QueryProvider>);
 
   expect(screen.getByRole("heading", { name: "Editar tarefa" })).toBeTruthy();
   expect(screen.getByRole<HTMLInputElement>("textbox", { name: /Título/ }).value).toBe(task.title);

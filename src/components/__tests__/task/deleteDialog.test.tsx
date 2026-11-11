@@ -55,6 +55,7 @@ describe("TaskDeleteDialog", () => {
       <QueryClientProvider client={queryClient}>
         <TaskDeleteDialog
           task={task}
+          open
           deleteTask={deleteTask}
           onClose={onClose}
           onDeleted={onDeleted}
