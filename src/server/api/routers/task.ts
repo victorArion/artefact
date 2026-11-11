@@ -12,8 +12,6 @@ function taskNotFound() {
 }
 
 export const taskRouter = router({
-  list: procedure.input(z.void()).query(({ ctx }) => ctx.taskRepository.list()),
-
   listPage: procedure
     .input(z.strictObject({ cursor: taskCursorSchema.optional() }))
     .query(({ ctx, input }) => {
@@ -26,7 +24,9 @@ export const taskRouter = router({
 
   getById: procedure.input(taskIdSchema).query(({ ctx, input }) => {
     const task = ctx.taskRepository.getById(input.id);
-    if (!task) throw taskNotFound();
+    if (!task) {
+      throw taskNotFound();
+    }
     return task;
   }),
 
@@ -38,12 +38,16 @@ export const taskRouter = router({
     .input(taskIdSchema.extend({ changes: updateTaskSchema }))
     .mutation(({ ctx, input }) => {
       const task = ctx.taskRepository.update(input.id, input.changes);
-      if (!task) throw taskNotFound();
+      if (!task) {
+        throw taskNotFound();
+      }
       return task;
     }),
 
   delete: procedure.input(taskIdSchema).mutation(({ ctx, input }) => {
-    if (!ctx.taskRepository.delete(input.id)) throw taskNotFound();
+    if (!ctx.taskRepository.delete(input.id)) {
+      throw taskNotFound();
+    }
     return { id: input.id };
   }),
 });

@@ -27,11 +27,11 @@ Each task has a server-generated UUID `id`, `title`, `description`, `createdAt`,
 and `updatedAt`. Use ISO 8601 strings for timestamps so the transport
 does not need custom date serialization.
 
-Validate inputs on the server using shared schemas. Trim titles and reject blank
-values. Use explicit, documented limits (initial defaults: 120 characters for a
-title and 5,000 for a description). Default an omitted description to an empty
-string on create. Allowlist editable fields, reject empty updates, and generate
-IDs and timestamps on the server. Task status is deferred.
+Validate inputs on the server using shared schemas. Require a title and
+description on create and reject blank values for either field. Trim titles.
+Limit titles to 120 characters and descriptions to 5,000 characters. Allowlist
+editable fields, reject empty updates, and generate IDs and timestamps on the
+server. Task status is deferred.
 
 ## Architecture
 
@@ -67,9 +67,9 @@ src/
   layout or styles that do not belong to a component.
 - Use the `AppRouterCacheProvider` from `@mui/material-nextjs/v15-appRouter` in
   the root layout to collect Emotion styles during App Router rendering.
-- Expose `task.list`, `task.getById`, `task.create`, `task.update`, and `task.delete`
-  through tRPC. Do not introduce a separate REST API or Server Actions for task
-  operations.
+- Expose `task.listPage`, `task.getById`, `task.create`, `task.update`, and
+  `task.delete` through tRPC. Do not introduce a separate REST API or Server
+  Actions for task operations.
 - Use `task.listPage` for the list screen with a UUID cursor. Resolve its
   creation time in the repository, including after the cursor task is deleted.
 - Infer client API types from the tRPC router. Keep runtime server imports out of
@@ -135,7 +135,7 @@ npm start
 `npm start` requires a successful build. Use **Jest for unit tests**, with a fresh
 repository instance per test.
 
-Test meaningful behavior: task creation and defaults, input rejection, updates
+Test meaningful behavior: task creation, input rejection, updates
 and timestamp preservation, deletion, unknown IDs, deterministic listing, and
 protection against mutation of returned records. Exercise the tRPC boundary as
 well as the repository. Manually verify the full create/edit/delete flow, empty

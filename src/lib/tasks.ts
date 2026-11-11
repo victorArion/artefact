@@ -21,11 +21,14 @@ export const TASK_TITLE_MAX_LENGTH = 120;
 export const TASK_DESCRIPTION_MAX_LENGTH = 5_000;
 
 const titleSchema = z.string().trim().min(1).max(TASK_TITLE_MAX_LENGTH);
-const descriptionSchema = z.string().max(TASK_DESCRIPTION_MAX_LENGTH);
+const descriptionSchema = z
+  .string()
+  .max(TASK_DESCRIPTION_MAX_LENGTH)
+  .refine((description) => description.trim().length > 0, "Description is required.");
 
 export const createTaskSchema = z.strictObject({
   title: titleSchema,
-  description: descriptionSchema.default(""),
+  description: descriptionSchema,
 });
 
 export const updateTaskSchema = z

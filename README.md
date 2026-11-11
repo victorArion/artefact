@@ -51,6 +51,9 @@ docker build -t artefact .
 docker run --rm --env-file .env -p 127.0.0.1:3000:3000 artefact
 ```
 
+The Docker image seeds 200 generated demo tasks at startup. Tasks remain in
+memory and are recreated when the container starts again.
+
 Open [http://localhost:3000](http://localhost:3000). Press `Ctrl+C` to stop the
 container. Docker passes `PORT` from `.env` to the container at startup. If you
 set `PORT=4000`, use `-p 127.0.0.1:4000:4000` and open

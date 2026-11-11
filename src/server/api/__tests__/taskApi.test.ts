@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { randomUUID } from "node:crypto";
-import { createTaskClient } from "../../trpc/client";
-import { createTaskRepository } from "../repositories/task-repository";
-import { appRouter } from "./root";
+import { createTaskClient } from "@/trpc/client";
+import { createTaskRepository } from "@/server/repositories/taskRepository";
+import { appRouter } from "@/server/api/root";
 
 describe("task API", () => {
   let taskRepository: ReturnType<typeof createTaskRepository>;
@@ -27,11 +27,14 @@ describe("task API", () => {
   });
 
   test("creates, lists, reads, updates, and deletes across requests", async () => {
-    expect(await client.task.list.query()).toEqual([]);
+    expect((await client.task.listPage.query({})).tasks).toEqual([]);
 
-    const created = await client.task.create.mutate({ title: "  First task  " });
-    expect(created).toMatchObject({ title: "First task", description: "" });
-    expect(await client.task.list.query()).toEqual([created]);
+    const created = await client.task.create.mutate({
+      title: "  First task  ",
+      description: "Details",
+    });
+    expect(created).toMatchObject({ title: "First task", description: "Details" });
+    expect((await client.task.listPage.query({})).tasks).toEqual([created]);
     expect(await client.task.getById.query({ id: created.id })).toEqual(created);
 
     const updated = await client.task.update.mutate({
@@ -47,7 +50,7 @@ describe("task API", () => {
     expect(await client.task.getById.query({ id: created.id })).toEqual(updated);
 
     expect(await client.task.delete.mutate({ id: created.id })).toEqual({ id: created.id });
-    expect(await client.task.list.query()).toEqual([]);
+    expect((await client.task.listPage.query({})).tasks).toEqual([]);
   });
 
   test("paginates by creation time and ID after the cursor task is deleted", async () => {
@@ -87,22 +90,39 @@ describe("task API", () => {
   });
 
   test("rejects malformed IDs and invalid writes as bad requests", async () => {
-    const created = await client.task.create.mutate({ title: "Original" });
+    const created = await client.task.create.mutate({ title: "Original", description: "Details" });
     const badRequest = { data: { code: "BAD_REQUEST", httpStatus: 400 } };
-    const createWithId = { title: "Invalid create", id: randomUUID() };
+    const createWithId = { title: "Invalid create", description: "Details", id: randomUUID() };
     const updateWithTimestamp = {
       id: created.id,
       changes: { title: "Invalid update", updatedAt: created.updatedAt },
     };
 
     await expect(client.task.getById.query({ id: "invalid" })).rejects.toMatchObject(badRequest);
-    await expect(client.task.create.mutate({ title: "   " })).rejects.toMatchObject(badRequest);
+    await expect(
+      client.task.create.mutate({ title: "   ", description: "Details" }),
+    ).rejects.toMatchObject(badRequest);
+    await expect(
+      client.task.create.mutate({ title: "Valid title", description: " " }),
+    ).rejects.toMatchObject(badRequest);
+    const missingDescription = await fetch("http://localhost/api/trpc/task.create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Missing description" }),
+    });
+    expect(missingDescription.status).toBe(400);
     await expect(client.task.create.mutate(createWithId)).rejects.toMatchObject(badRequest);
     await expect(
       client.task.update.mutate({ id: created.id, changes: {} }),
     ).rejects.toMatchObject(badRequest);
+    await expect(
+      client.task.update.mutate({ id: created.id, changes: { description: "" } }),
+    ).rejects.toMatchObject({
+      message: "Invalid input.",
+      data: { ...badRequest.data, validationFields: ["description"] },
+    });
     await expect(client.task.update.mutate(updateWithTimestamp)).rejects.toMatchObject(badRequest);
-    expect(await client.task.list.query()).toEqual([created]);
+    expect((await client.task.listPage.query({})).tasks).toEqual([created]);
   });
 
   test("reports missing tasks for lookup, update, and delete", async () => {
@@ -117,14 +137,20 @@ describe("task API", () => {
   });
 
   test("hides details of unexpected server errors", async () => {
-    jest.spyOn(taskRepository, "list").mockImplementation(() => {
+    const log = jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(taskRepository, "listPage").mockImplementation(() => {
       throw new Error("Private repository error");
     });
 
-    const response = await fetch("http://localhost/api/trpc/task.list");
-    expect(response.status).toBe(500);
-    const { error } = await response.json();
-    expect(error.message).toBe("Internal server error.");
-    expect(error.data).not.toHaveProperty("stack");
+    const error = await client.task.listPage.query({}).catch((error: unknown) => error);
+    expect(error).toMatchObject({
+      message: "Internal server error.",
+      data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 },
+    });
+    expect(error).not.toHaveProperty("data.stack");
+    expect(log.mock.calls).toEqual([[
+      "Task procedure failed",
+      { path: "task.listPage", type: "query", code: "INTERNAL_SERVER_ERROR" },
+    ]]);
   });
 });

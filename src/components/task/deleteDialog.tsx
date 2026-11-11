@@ -14,7 +14,8 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
-import type { Task, TaskCursor, TaskPage } from "../lib/tasks";
+import type { Task, TaskCursor, TaskPage } from "../../lib/tasks";
+import { getTaskError } from "../../lib/taskErrors";
 
 const taskListKey = ["task", "listPage"] as const;
 
@@ -26,7 +27,7 @@ type TaskDeleteDialogProps = {
   onExited: () => void;
 };
 
-export function TaskDeleteDialog({
+export default function TaskDeleteDialog({
   task,
   deleteTask,
   onClose,
@@ -72,7 +73,7 @@ export function TaskDeleteDialog({
         </DialogContentText>
         {deletion.isError && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            Não foi possível excluir a tarefa. Tente novamente.
+            {getTaskError(deletion.error, "delete").message}
           </Alert>
         )}
       </DialogContent>

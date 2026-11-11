@@ -1,5 +1,5 @@
 import Container from "@mui/material/Container";
-import { TaskForm } from "@/components/task-form";
+import TaskForm from "@/components/task/form";
 
 export default function NewTaskPage() {
   return (

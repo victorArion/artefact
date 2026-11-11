@@ -1,17 +1,12 @@
 import Container from "@mui/material/Container";
-import { TaskList } from "../components/task-list";
-import { appRouter } from "../server/api/root";
-import { taskRepository } from "../server/repositories/task-repository";
+import TaskListLoader from "@/components/task/listLoader";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const caller = appRouter.createCaller({ taskRepository });
-  const firstPage = await caller.task.listPage({});
-
+export default function Home() {
   return (
     <Container component="main" maxWidth="md" sx={{ py: 4 }}>
-      <TaskList firstPage={firstPage} />
+      <TaskListLoader />
     </Container>
   );
 }

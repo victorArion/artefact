@@ -1,6 +1,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "../../../../server/api/root";
-import { taskRepository } from "../../../../server/repositories/task-repository";
+import { taskRepository } from "../../../../server/repositories/taskRepository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

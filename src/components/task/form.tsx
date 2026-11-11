@@ -9,27 +9,28 @@ import {
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_TITLE_MAX_LENGTH,
   type Task,
-} from "../lib/tasks";
-import { createTaskClient } from "../trpc/client";
+} from "../../lib/tasks";
+import { createTaskClient } from "../../trpc/client";
+import { getTaskError, getTaskFieldErrors } from "../../lib/taskErrors";
 
 type TaskFormProps = {
   task?: Pick<Task, "id" | "title" | "description">;
 };
 
-export function TaskForm({ task }: TaskFormProps) {
+export default function TaskForm({ task }: TaskFormProps) {
   const router = useRouter();
   const [client] = useState(createTaskClient);
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
   const [errors, setErrors] = useState<{ title?: string; description?: string }>({});
-  const [saveError, setSaveError] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
 
-    setSaveError(false);
+    setSaveError(null);
     const result = createTaskSchema.safeParse({ title, description });
     if (!result.success) {
       const fieldErrors = result.error.flatten().fieldErrors;
@@ -40,7 +41,9 @@ export function TaskForm({ task }: TaskFormProps) {
             : "Informe o título da tarefa."
           : undefined,
         description: fieldErrors.description
-          ? `Use até ${TASK_DESCRIPTION_MAX_LENGTH} caracteres na descrição.`
+          ? description.trim()
+            ? `Use até ${TASK_DESCRIPTION_MAX_LENGTH} caracteres na descrição.`
+            : "Informe a descrição da tarefa."
           : undefined,
       });
       return;
@@ -54,8 +57,10 @@ export function TaskForm({ task }: TaskFormProps) {
       } else {
         await client.task.create.mutate(result.data);
       }
-    } catch {
-      setSaveError(true);
+    } catch (error) {
+      const fields = getTaskFieldErrors(error);
+      if (fields.title || fields.description) setErrors(fields);
+      else setSaveError(getTaskError(error, "save").message);
       setIsSaving(false);
       return;
     }
@@ -71,7 +76,7 @@ export function TaskForm({ task }: TaskFormProps) {
       </Typography>
 
       {saveError && (
-        <Alert severity="error">Não foi possível salvar a tarefa. Tente novamente.</Alert>
+        <Alert severity="error">{saveError}</Alert>
       )}
 
       <TextField
@@ -87,13 +92,16 @@ export function TaskForm({ task }: TaskFormProps) {
           setTitle(event.target.value);
           setErrors((current) => ({ ...current, title: undefined }));
         }}
+        slotProps={{ htmlInput: { maxLength: TASK_TITLE_MAX_LENGTH } }}
       />
       <TextField
         id="task-description"
         name="description"
         label="Descrição"
+        required
         multiline
-        minRows={4}
+        rows={4}
+        slotProps={{ htmlInput: { maxLength: TASK_DESCRIPTION_MAX_LENGTH } }}
         value={description}
         disabled={isSaving}
         error={Boolean(errors.description)}

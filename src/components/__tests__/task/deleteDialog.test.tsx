@@ -3,8 +3,8 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { Task, TaskPage } from "../lib/tasks";
-import { TaskDeleteDialog } from "./task-delete";
+import type { Task, TaskPage } from "@/lib/tasks";
+import TaskDeleteDialog from "@/components/task/deleteDialog";
 
 const task: Task = {
   id: "b6c7f4ca-1d77-49c5-8d48-9a3e76a14178",

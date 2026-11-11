@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { createInitialTasks } from "./initialTasks";
 import {
   createTaskSchema,
   updateTaskSchema,
@@ -25,12 +26,6 @@ export function createTaskRepository(initialTasks: readonly Task[] = []) {
   const deletedTaskTimestamps = new Map<string, string>();
 
   return {
-    list(): Task[] {
-      return Array.from(tasks.values())
-        .sort(compareTaskOrder)
-        .map((task) => ({ ...task }));
-    },
-
     listPage(cursor?: TaskCursor): TaskPage | undefined {
       let position: TaskPosition | undefined;
       if (cursor !== undefined) {
@@ -103,19 +98,6 @@ const processGlobal = globalThis as typeof globalThis & {
 };
 
 export const taskRepository =
-  (processGlobal.artefactTaskRepository ??= createTaskRepository([
-    {
-      id: randomUUID(),
-      title: "Default task 1",
-      description: "This is a default task created when the repository starts.",
-      createdAt: "2024-01-01T00:00:00.000Z",
-      updatedAt: "2024-01-01T00:00:00.000Z",
-    },
-    {
-      id: randomUUID(),
-      title: "Default task 2",
-      description: "This is a second default task for demo purposes.",
-      createdAt: "2024-01-02T00:00:00.000Z",
-      updatedAt: "2024-01-02T00:00:00.000Z",
-    },
-  ]));
+  (processGlobal.artefactTaskRepository ??= createTaskRepository(
+    createInitialTasks(Math.max(0, Number.parseInt(process.env.TASK_SEED_COUNT ?? "0", 10) || 0)),
+  ));
