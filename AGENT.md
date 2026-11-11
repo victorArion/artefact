@@ -15,8 +15,8 @@ test, and explain.
 - ESLint and CSS Modules.
 - Material UI (`@mui/material`) with Emotion for component styling.
 - Zod for shared task input validation and Jest for repository and API tests.
-- tRPC v11 for task procedures and the typed HTTP client. TanStack Query
-  integration is deferred until the UI uses it.
+- tRPC v11 for task procedures and the typed HTTP client. TanStack Query manages
+  pagination and mutations on the task list.
 
 Keep Next.js on version 15. Build on the existing scaffold without replacing
 unrelated files or introducing unnecessary frameworks.
@@ -70,6 +70,8 @@ src/
 - Expose `task.list`, `task.getById`, `task.create`, `task.update`, and `task.delete`
   through tRPC. Do not introduce a separate REST API or Server Actions for task
   operations.
+- Use `task.listPage` for the list screen with a UUID cursor. Resolve its
+  creation time in the repository, including after the cursor task is deleted.
 - Infer client API types from the tRPC router. Keep runtime server imports out of
   client modules and mark server-only modules accordingly.
 - Keep routers focused on validation, error mapping, and repository calls. Keep

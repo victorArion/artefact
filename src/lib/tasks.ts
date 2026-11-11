@@ -8,8 +8,20 @@ export type Task = {
   updatedAt: string;
 };
 
-const titleSchema = z.string().trim().min(1).max(120);
-const descriptionSchema = z.string().max(5_000);
+export const taskCursorSchema = z.uuid();
+
+export type TaskCursor = z.infer<typeof taskCursorSchema>;
+
+export type TaskPage = {
+  tasks: Task[];
+  nextCursor: TaskCursor | null;
+};
+
+export const TASK_TITLE_MAX_LENGTH = 120;
+export const TASK_DESCRIPTION_MAX_LENGTH = 5_000;
+
+const titleSchema = z.string().trim().min(1).max(TASK_TITLE_MAX_LENGTH);
+const descriptionSchema = z.string().max(TASK_DESCRIPTION_MAX_LENGTH);
 
 export const createTaskSchema = z.strictObject({
   title: titleSchema,

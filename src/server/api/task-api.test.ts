@@ -50,6 +50,42 @@ describe("task API", () => {
     expect(await client.task.list.query()).toEqual([]);
   });
 
+  test("paginates by creation time and ID after the cursor task is deleted", async () => {
+    const timestamp = "2026-01-02T00:00:00.000Z";
+    const ids = Array.from({ length: 12 }, () => randomUUID()).sort();
+    taskRepository = createTaskRepository(
+      ids.map((id, index) => ({
+        id,
+        title: `Task ${index}`,
+        description: "",
+        createdAt: index === 0 ? "2026-01-01T00:00:00.000Z" : timestamp,
+        updatedAt: timestamp,
+      })).reverse(),
+    );
+
+    const first = await client.task.listPage.query({});
+    expect(first.tasks.map(({ id }) => id)).toEqual(ids.slice(1, 11));
+    expect(first.nextCursor).toBe(ids[10]);
+    if (!first.nextCursor) throw new Error("Expected another page");
+
+    const next = await client.task.listPage.query({ cursor: first.nextCursor });
+    await client.task.delete.mutate({ id: first.nextCursor });
+    const second = await client.task.listPage.query({ cursor: first.nextCursor });
+    expect(second.tasks.map(({ id }) => id)).toEqual([ids[11], ids[0]]);
+    expect(second.nextCursor).toBeNull();
+    expect(second).toEqual(next);
+  });
+
+  test("returns no cursor for empty lists and rejects invalid or unknown cursors", async () => {
+    expect(await client.task.listPage.query({})).toEqual({ tasks: [], nextCursor: null });
+    await expect(
+      client.task.listPage.query({ cursor: "invalid" }),
+    ).rejects.toMatchObject({ data: { code: "BAD_REQUEST" } });
+    await expect(
+      client.task.listPage.query({ cursor: randomUUID() }),
+    ).rejects.toMatchObject({ data: { code: "NOT_FOUND" } });
+  });
+
   test("rejects malformed IDs and invalid writes as bad requests", async () => {
     const created = await client.task.create.mutate({ title: "Original" });
     const badRequest = { data: { code: "BAD_REQUEST", httpStatus: 400 } };

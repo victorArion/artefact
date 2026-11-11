@@ -6,21 +6,50 @@ import {
   updateTaskSchema,
   type CreateTaskInput,
   type Task,
+  type TaskCursor,
+  type TaskPage,
   type UpdateTaskInput,
 } from "../../lib/tasks";
 
+const pageSize = 10;
+
+type TaskPosition = Pick<Task, "createdAt" | "id">;
+
+function compareTaskOrder(left: TaskPosition, right: TaskPosition) {
+  return right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id);
+}
+
 export function createTaskRepository(initialTasks: readonly Task[] = []) {
   const tasks = new Map(initialTasks.map((task) => [task.id, { ...task }]));
+  // Retain the position of deleted tasks so clients can resume from their UUIDs.
+  const deletedTaskTimestamps = new Map<string, string>();
 
   return {
     list(): Task[] {
       return Array.from(tasks.values())
-        .sort(
-          (left, right) =>
-            right.createdAt.localeCompare(left.createdAt) ||
-            left.id.localeCompare(right.id),
-        )
+        .sort(compareTaskOrder)
         .map((task) => ({ ...task }));
+    },
+
+    listPage(cursor?: TaskCursor): TaskPage | undefined {
+      let position: TaskPosition | undefined;
+      if (cursor !== undefined) {
+        const createdAt = tasks.get(cursor)?.createdAt ?? deletedTaskTimestamps.get(cursor);
+        if (createdAt === undefined) return undefined;
+        position = { id: cursor, createdAt };
+      }
+
+      const matches = Array.from(tasks.values())
+        .filter((task) => !position || compareTaskOrder(task, position) > 0)
+        .sort(compareTaskOrder)
+        .slice(0, pageSize + 1);
+      const page = matches.slice(0, pageSize);
+      const last = page.at(-1);
+
+      return {
+        tasks: page.map((task) => ({ ...task })),
+        nextCursor: matches.length > pageSize && last ? last.id : null,
+      };
     },
 
     getById(id: string): Task | undefined {
@@ -60,6 +89,9 @@ export function createTaskRepository(initialTasks: readonly Task[] = []) {
     },
 
     delete(id: string): boolean {
+      const task = tasks.get(id);
+      if (!task) return false;
+      deletedTaskTimestamps.set(id, task.createdAt);
       return tasks.delete(id);
     },
   };

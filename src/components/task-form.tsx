@@ -1,0 +1,119 @@
+"use client";
+
+import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import {
+  createTaskSchema,
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_TITLE_MAX_LENGTH,
+  type Task,
+} from "../lib/tasks";
+import { createTaskClient } from "../trpc/client";
+
+type TaskFormProps = {
+  task?: Pick<Task, "id" | "title" | "description">;
+};
+
+export function TaskForm({ task }: TaskFormProps) {
+  const router = useRouter();
+  const [client] = useState(createTaskClient);
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [description, setDescription] = useState(task?.description ?? "");
+  const [errors, setErrors] = useState<{ title?: string; description?: string }>({});
+  const [saveError, setSaveError] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSaving) return;
+
+    setSaveError(false);
+    const result = createTaskSchema.safeParse({ title, description });
+    if (!result.success) {
+      const fieldErrors = result.error.flatten().fieldErrors;
+      setErrors({
+        title: fieldErrors.title
+          ? title.trim()
+            ? `Use até ${TASK_TITLE_MAX_LENGTH} caracteres no título.`
+            : "Informe o título da tarefa."
+          : undefined,
+        description: fieldErrors.description
+          ? `Use até ${TASK_DESCRIPTION_MAX_LENGTH} caracteres na descrição.`
+          : undefined,
+      });
+      return;
+    }
+
+    setErrors({});
+    setIsSaving(true);
+    try {
+      if (task) {
+        await client.task.update.mutate({ id: task.id, changes: result.data });
+      } else {
+        await client.task.create.mutate(result.data);
+      }
+    } catch {
+      setSaveError(true);
+      setIsSaving(false);
+      return;
+    }
+
+    router.replace("/");
+    router.refresh();
+  }
+
+  return (
+    <Stack component="form" spacing={2} onSubmit={handleSubmit} noValidate>
+      <Typography component="h1" variant="h4">
+        {task ? "Editar tarefa" : "Nova tarefa"}
+      </Typography>
+
+      {saveError && (
+        <Alert severity="error">Não foi possível salvar a tarefa. Tente novamente.</Alert>
+      )}
+
+      <TextField
+        id="task-title"
+        name="title"
+        label="Título"
+        required
+        value={title}
+        disabled={isSaving}
+        error={Boolean(errors.title)}
+        helperText={errors.title}
+        onChange={(event) => {
+          setTitle(event.target.value);
+          setErrors((current) => ({ ...current, title: undefined }));
+        }}
+      />
+      <TextField
+        id="task-description"
+        name="description"
+        label="Descrição"
+        multiline
+        minRows={4}
+        value={description}
+        disabled={isSaving}
+        error={Boolean(errors.description)}
+        helperText={errors.description}
+        onChange={(event) => {
+          setDescription(event.target.value);
+          setErrors((current) => ({ ...current, description: undefined }));
+        }}
+      />
+
+      <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
+        {isSaving ? (
+          <Button disabled>Cancelar</Button>
+        ) : (
+          <Button component={Link} href="/">Cancelar</Button>
+        )}
+        <Button type="submit" variant="contained" disabled={isSaving}>
+          {isSaving ? "Salvando…" : task ? "Salvar alterações" : "Criar tarefa"}
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}

@@ -1,0 +1,3 @@
+export const TIMEOUTS = {
+  DELETE_NOTIFICATION: 10_000,
+};

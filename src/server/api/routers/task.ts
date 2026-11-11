@@ -2,7 +2,7 @@ import "server-only";
 
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { createTaskSchema, updateTaskSchema } from "../../../lib/tasks";
+import { createTaskSchema, taskCursorSchema, updateTaskSchema } from "../../../lib/tasks";
 import { procedure, router } from "../trpc";
 
 const taskIdSchema = z.strictObject({ id: z.uuid() });
@@ -13,6 +13,16 @@ function taskNotFound() {
 
 export const taskRouter = router({
   list: procedure.input(z.void()).query(({ ctx }) => ctx.taskRepository.list()),
+
+  listPage: procedure
+    .input(z.strictObject({ cursor: taskCursorSchema.optional() }))
+    .query(({ ctx, input }) => {
+      const page = ctx.taskRepository.listPage(input.cursor);
+      if (!page) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Task cursor not found." });
+      }
+      return page;
+    }),
 
   getById: procedure.input(taskIdSchema).query(({ ctx, input }) => {
     const task = ctx.taskRepository.getById(input.id);
